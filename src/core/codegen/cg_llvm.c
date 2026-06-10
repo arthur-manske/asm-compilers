@@ -176,7 +176,11 @@ static LLVMValueRef s_emit_node(struct dpp_codegen *cg, struct dpp_node *node);
 static LLVMValueRef s_emit_addr(struct dpp_codegen *cg, struct dpp_node *node)
 {
 	if (!node) return NULL;
-	if (node->nod_kind == NOD_IDENTIFIER) return node->nod_ref ? node->nod_ref->nod_llvm_val : NULL;
+	if (node->nod_kind == NOD_IDENTIFIER) {
+        LLVMValueRef val = node->nod_ref ? node->nod_ref->nod_llvm_val : NULL;
+        if (!val) printf("DEBUG: s_emit_addr: node is IDENTIFIER but nod_llvm_val is NULL\n");
+        return val;
+    }
 	if (node->nod_kind == NOD_UNARY_EXPR && node->nod_data.nod_op.op_kind == '*')
 		return s_emit_node(cg, node->nod_child);
 
@@ -878,13 +882,90 @@ static LLVMValueRef s_emit_node(struct dpp_codegen *cg, struct dpp_node *node)
 	case NOD_EXPR_STMT:
 		return s_emit_node(cg, node->nod_child);
 	case NOD_ASM_STMT: {
-		LLVMTypeRef    ret_ty = LLVMVoidTypeInContext(cg->context);
-        LLVMTypeRef    fnty   = LLVMFunctionType(ret_ty, NULL, 0, false);
-		LLVMValueRef   asm_val = LLVMGetInlineAsm(fnty, 
-                                                    (char*)node->nod_child->nod_data.nod_id.id_name,
-                                                    node->nod_child->nod_data.nod_id.id_len,
-                                                    "", 0, false, false, 0, false);
-		return LLVMBuildCall2(cg->builder, fnty, asm_val, NULL, 0, "");
+		char *constraints = malloc(1024);
+		constraints[0]    = 0;
+		LLVMValueRef operands[32];
+		LLVMTypeRef  param_types[32];
+		LLVMValueRef output_addrs[32];
+		LLVMTypeRef  output_types[32];
+		int          num_operands = 0;
+		int          num_outputs  = 0;
+		bool         first        = true;
+
+		// 1. Collect outputs: constraints string and addresses for later storage
+		struct dpp_node *curr = node->nod_data.nod_asm.asm_outputs;
+		while (curr) {
+			if (!first) strcat(constraints, ",");
+			strncat(constraints, (char *)curr->nod_data.nod_id.id_name + 1,
+			        curr->nod_data.nod_id.id_len - 2);
+			first = false;
+
+			output_addrs[num_outputs] = s_emit_addr(cg, curr->nod_next);
+			// Get the type from the AST node
+            struct dpp_type *ty = (struct dpp_type *)curr->nod_next->nod_type;
+            if (!ty && curr->nod_next->nod_ref) ty = (struct dpp_type *)curr->nod_next->nod_ref->nod_type;
+			output_types[num_outputs] = s_map_type(cg, ty);
+			num_outputs++;
+			curr = curr->nod_next->nod_next;
+		}
+
+		// 2. Collect inputs: constraints and values (passed as call arguments)
+		curr = node->nod_data.nod_asm.asm_inputs;
+		while (curr) {
+			if (!first) strcat(constraints, ",");
+			strncat(constraints, (char *)curr->nod_data.nod_id.id_name + 1,
+			        curr->nod_data.nod_id.id_len - 2);
+			first = false;
+			operands[num_operands]    = s_emit_node(cg, curr->nod_next);
+			param_types[num_operands] = LLVMTypeOf(operands[num_operands]);
+			num_operands++;
+			curr = curr->nod_next->nod_next;
+		}
+
+		// 3. Collect clobbers
+		curr = node->nod_data.nod_asm.asm_clobbers;
+		while (curr) {
+			strcat(constraints, ",~{");
+			char *clobber_name = (char *)curr->nod_data.nod_id.id_name + 1;
+			size_t clobber_len = curr->nod_data.nod_id.id_len - 2;
+			if (clobber_name[0] == '%') {
+				clobber_name++;
+				clobber_len--;
+			}
+			strncat(constraints, clobber_name, clobber_len);
+			strcat(constraints, "}");
+			curr = curr->nod_next;
+		}
+
+		// 4. Determine return type (void, single type, or struct for multiple outputs)
+		LLVMTypeRef ret_ty;
+		if (num_outputs == 0)
+			ret_ty = LLVMVoidTypeInContext(cg->context);
+		else if (num_outputs == 1)
+			ret_ty = output_types[0];
+		else
+			ret_ty = LLVMStructTypeInContext(cg->context, output_types, num_outputs, false);
+
+		LLVMTypeRef fnty = LLVMFunctionType(ret_ty, param_types, num_operands, false);
+		LLVMValueRef asm_val =
+			LLVMGetInlineAsm(fnty, (char *)node->nod_child->nod_data.nod_id.id_name + 1,
+			                 node->nod_child->nod_data.nod_id.id_len - 2, constraints,
+			                 strlen(constraints), false, false, 0, false);
+		free(constraints);
+
+		LLVMValueRef call = LLVMBuildCall2(cg->builder, fnty, asm_val, operands, num_operands, "");
+
+		// 5. Store the results back to output variables
+		if (num_outputs == 1) {
+			LLVMBuildStore(cg->builder, call, output_addrs[0]);
+		} else if (num_outputs > 1) {
+			for (int i = 0; i < num_outputs; i++) {
+				LLVMValueRef val = LLVMBuildExtractValue(cg->builder, call, i, "");
+				LLVMBuildStore(cg->builder, val, output_addrs[i]);
+			}
+		}
+
+		return call;
 	}
 	case NOD_COMPOUND_STMT: {
 		struct dpp_node *curr = node->nod_child;

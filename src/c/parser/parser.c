@@ -979,45 +979,73 @@ static struct dpp_node *s_parse_asm_stmt(struct dpp_parser *par)
 	u32               col  = lex->lex_column;
 	dpp_parser_expect(par, TOK_LPAREN);
 	struct dpp_node  *node = dpp_node_new(&par->par_arena, NOD_ASM_STMT, line, col);
-	struct dpp_node **last = &node->nod_child;
-	while (dpp_parser_peek(par) == TOK_STRING) {
-		struct dpp_node *node       = dpp_node_new(&par->par_arena, NOD_STRING_LITERAL, line, col);
-		size_t           total_len  = 0;
-		u8              *concat_buf = NULL;
-		struct dpp_lexer *cur_lex   = par->par_curr_lex;
-		size_t            raw_len   = cur_lex->lex_cursor - cur_lex->lex_token - 2;
-		u8               *unescaped = dpp_arena_alloc(&par->par_arena, raw_len + 1);
-		size_t            final_len = s_unescape_string(unescaped, cur_lex->lex_token + 1, raw_len);
-		concat_buf                = dpp_arena_alloc(&par->par_arena, final_len + 1);
-		memcpy(concat_buf, unescaped, final_len);
-		concat_buf[final_len] = 0;
-		node->nod_data.nod_id.id_name = concat_buf;
-		node->nod_data.nod_id.id_len  = final_len;
+    
+    // Template string
+	if (dpp_parser_peek(par) == TOK_STRING) {
+		node->nod_child = dpp_node_new(&par->par_arena, NOD_STRING_LITERAL, line, col);
+        node->nod_child->nod_data.nod_id.id_name = par->par_curr_lex->lex_token;
+        node->nod_child->nod_data.nod_id.id_len = par->par_curr_lex->lex_cursor - par->par_curr_lex->lex_token;
 		dpp_parser_consume(par);
-		*last = node;
-		last  = &node->nod_next;
 	}
-	int section = 0;
-	while (true) {
-		s32 tok = dpp_parser_peek(par);
-        if (tok == TOK_COLON) {
+
+	node->nod_data.nod_asm.asm_outputs = NULL;
+	node->nod_data.nod_asm.asm_inputs = NULL;
+	node->nod_data.nod_asm.asm_clobbers = NULL;
+	struct dpp_node **last_outputs = &node->nod_data.nod_asm.asm_outputs;
+	struct dpp_node **last_inputs = &node->nod_data.nod_asm.asm_inputs;
+	struct dpp_node **last_clobbers = &node->nod_data.nod_asm.asm_clobbers;
+    
+	int section = 0; // 0: template, 1: outputs, 2: inputs, 3: clobbers
+	while (dpp_parser_peek(par) != TOK_RPAREN && dpp_parser_peek(par) != TOK_EOF) {
+        if (dpp_parser_peek(par) == TOK_COLON) {
             dpp_parser_consume(par);
+            section++;
             continue;
         }
-		if (tok == TOK_RPAREN || tok == TOK_EOF) break;
-		if (tok == TOK_STRING) {
-			dpp_parser_consume(par);
-		} else if (tok == TOK_LPAREN) {
-			dpp_parser_consume(par);
-			int paren_depth = 1;
-			while (paren_depth > 0 && (tok = dpp_parser_peek(par)) != TOK_EOF) {
-				if (tok == TOK_LPAREN) paren_depth++;
-				else if (tok == TOK_RPAREN) paren_depth--;
-				dpp_parser_consume(par);
-			}
-		} else {
-			dpp_parser_consume(par);
-		}
+
+        if (section == 1 || section == 2) {
+            // Expect constraint(expr)
+            if (dpp_parser_peek(par) == TOK_STRING) {
+                struct dpp_node *constraint = dpp_node_new(&par->par_arena, NOD_STRING_LITERAL, line, col);
+                constraint->nod_data.nod_id.id_name = par->par_curr_lex->lex_token;
+                constraint->nod_data.nod_id.id_len = par->par_curr_lex->lex_cursor - par->par_curr_lex->lex_token;
+                dpp_parser_consume(par);
+
+                dpp_parser_expect(par, TOK_LPAREN);
+                struct dpp_node *expr = dpp_parser_parse_expr(par, 0);
+                if (expr->nod_kind == NOD_IDENTIFIER) {
+                    struct dpp_symbol *sym = dpp_symtab_lookup(&par->par_symtab, expr->nod_data.nod_id.id_name, expr->nod_data.nod_id.id_len);
+                    if (sym) expr->nod_ref = sym->sym_node;
+                }
+                dpp_parser_expect(par, TOK_RPAREN);
+
+                constraint->nod_next = expr;
+                if (section == 1) {
+                    *last_outputs = constraint;
+                    last_outputs = &expr->nod_next;
+                } else {
+                    *last_inputs = constraint;
+                    last_inputs = &expr->nod_next;
+                }
+            }
+        } else if (section == 3) {
+            // Expect clobber string
+            if (dpp_parser_peek(par) == TOK_STRING) {
+                struct dpp_node *clobber = dpp_node_new(&par->par_arena, NOD_STRING_LITERAL, line, col);
+                clobber->nod_data.nod_id.id_name = par->par_curr_lex->lex_token;
+                clobber->nod_data.nod_id.id_len = par->par_curr_lex->lex_cursor - par->par_curr_lex->lex_token;
+                dpp_parser_consume(par);
+                
+                *last_clobbers = clobber;
+                last_clobbers = &clobber->nod_next;
+            }
+        }
+        
+        if (dpp_parser_peek(par) == TOK_COMMA) {
+            dpp_parser_consume(par);
+        } else if (dpp_parser_peek(par) != TOK_COLON && dpp_parser_peek(par) != TOK_RPAREN) {
+            dpp_parser_consume(par);
+        }
 	}
 	dpp_parser_expect(par, TOK_RPAREN);
 	dpp_parser_expect(par, TOK_SEMICOLON);

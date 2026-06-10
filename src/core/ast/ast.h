@@ -109,7 +109,11 @@ struct dpp_node {
 		        struct dpp_node *op_rhs;
 		        struct dpp_node *op_cond; /* Para NOD_TERNARY_EXPR */
 		} nod_op;
-
+        struct {
+            struct dpp_node *asm_outputs;
+            struct dpp_node *asm_inputs;
+            struct dpp_node *asm_clobbers;
+        } nod_asm;
 	} nod_data;
 
 	u32 nod_ptr_depth;  /* Profundidade de ponteiros (*) */
