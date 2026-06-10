@@ -1,0 +1,11 @@
+build/
+.xmake/
+dpp
+*.o
+*.ll
+*.obj
+*.exe
+*.elf
+*.core
+*.log
+*.out

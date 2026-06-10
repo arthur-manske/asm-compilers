@@ -1,0 +1,34 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y \
+          clang \
+          llvm \
+          libc6-dev \
+          build-essential \
+          llvm-dev \
+          re2c \
+          pkg-config \
+          make \
+          libfyaml-dev
+
+    - name: make
+      run: make
+
+    - name: test
+      run: make test

@@ -1,0 +1,12 @@
+linker: "/usr/bin/ld"
+dynamic_linker: "/lib64/ld-linux-x86-64.so.2"
+crt:
+  - "/usr/lib/crt1.o"
+  - "/usr/lib/crti.o"
+post_crt:
+  - "/usr/lib/crtn.o"
+default_lib_paths:
+  - "/usr/lib"
+  - "/lib64"
+default_libs:
+  - "c"

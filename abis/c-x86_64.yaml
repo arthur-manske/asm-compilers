@@ -1,0 +1,52 @@
+# D++ Architecture Binary Interface Specification for C
+# Target: x86_64-pc-linux-gnu (System V ABI)
+
+name: x86_64
+endian: little
+
+# Pointer properties
+pointers:
+  size: 8
+  align: 8
+
+# Primitive types sizing and alignment
+types:
+  void:  { size: 0, align: 1 }
+  bool:  { size: 1, align: 1 }
+  char:  { size: 1, align: 1 }
+  short: { size: 2, align: 2 }
+  int:   { size: 4, align: 4 }
+  long:  { size: 8, align: 8 }
+  llong: { size: 8, align: 8 }
+  float: { size: 4, align: 4 }
+  double: { size: 8, align: 8 }
+  ldouble: { size: 16, align: 16 }
+
+# Calling Convention: System V AMD64
+calling_convention:
+  name: sysv_64
+  stack_align: 16
+  red_zone_size: 128
+  
+  # Register usage for arguments (in order)
+  int_arg_regs: [ rdi, rsi, rdx, rcx, r8, r9 ]
+  float_arg_regs: [ xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7 ]
+  
+  # Return registers
+  int_ret_reg: rax
+  float_ret_reg: xmm0
+
+  # Callee-saved (must be preserved)
+  preserved_regs: [ rbx, rbp, r12, r13, r14, r15 ]
+  
+  # Caller-saved (can be used as scratch)
+  scratch_regs: [ rax, rcx, rdx, rsi, rdi, r8, r9, r10, r11 ]
+
+  # Aggregate return strategy
+  max_reg_return_size: 16
+
+# Alignment rules for aggregates
+struct_rules:
+  default_align: 8
+  max_field_align: 16
+  bitfield_packing: true
