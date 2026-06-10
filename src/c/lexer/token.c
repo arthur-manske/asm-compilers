@@ -87,6 +87,20 @@ const char *dpp_token_kind_to_str(s32 kind)
 		return "extern";
 	case TOK_FLOAT:
 		return "float";
+	case TOK_FLOAT16:
+		return "_Float16";
+	case TOK_FLOAT32:
+		return "_Float32";
+	case TOK_FLOAT64:
+		return "_Float64";
+	case TOK_FLOAT128:
+		return "_Float128";
+	case TOK_FLOAT32X:
+		return "_Float32x";
+	case TOK_FLOAT64X:
+		return "_Float64x";
+	case TOK_FLOAT128X:
+		return "_Float128x";
 	case TOK_FOR:
 		return "for";
 	case TOK_GOTO:
@@ -261,6 +275,13 @@ enum dpp_type_kind dpp_token_to_type(s32 kind)
     case TOK_CHAR: return TYPE_CHAR;
     case TOK_INT: return TYPE_INT;
     case TOK_FLOAT: return TYPE_FLOAT;
+    case TOK_FLOAT16: return TYPE_FLOAT16;
+    case TOK_FLOAT32: return TYPE_FLOAT32;
+    case TOK_FLOAT64: return TYPE_FLOAT64;
+    case TOK_FLOAT128: return TYPE_FLOAT128;
+    case TOK_FLOAT32X: return TYPE_FLOAT32X;
+    case TOK_FLOAT64X: return TYPE_FLOAT64X;
+    case TOK_FLOAT128X: return TYPE_FLOAT128X;
     case TOK_DOUBLE: return TYPE_DOUBLE;
     case TOK_BOOL: return TYPE_BOOL;
     case TOK_VOID: return TYPE_VOID;

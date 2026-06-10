@@ -515,7 +515,14 @@ static u32 s_eval_sizeof_expr(struct dpp_node *size_node)
 	case TOK_INT:    base_size = 4; break;
 	case TOK_LONG:   base_size = 8; break;
 	case TOK_FLOAT:  base_size = 4; break;
-	case TOK_DOUBLE: base_size = 8; break;
+	case TOK_FLOAT16:base_size = 2; break;
+	case TOK_FLOAT32:base_size = 4; break;
+	case TOK_FLOAT64:base_size = 8; break;
+	case TOK_FLOAT128:base_size = 16;break;
+	case TOK_FLOAT32X:base_size = 8; break;
+	case TOK_FLOAT64X:base_size = 16;break;
+	case TOK_FLOAT128X:base_size = 16;break;
+	case TOK_DOUBLE:  base_size = 8; break;
 	case TOK_VOID:   base_size = 1; break;
 	case TOK_BOOL:   base_size = 1; break;
 	default: break;

@@ -129,7 +129,13 @@ lex_next:
         
         "_Accum"    { s_update_pos(lex); lex->lex_is_bol = false; return TOK_ACCUM; }
         "_UAccum"   { s_update_pos(lex); lex->lex_is_bol = false; return TOK_UACCUM; }
-        "_Decimal" [0-9]+ { s_update_pos(lex); lex->lex_is_bol = false; return TOK_DECIMAL_TYPE; }
+        "_Float16"  { s_update_pos(lex); lex->lex_is_bol = false; return TOK_FLOAT16; }
+        "_Float32"  { s_update_pos(lex); lex->lex_is_bol = false; return TOK_FLOAT32; }
+        "_Float64"  { s_update_pos(lex); lex->lex_is_bol = false; return TOK_FLOAT64; }
+        "_Float128" { s_update_pos(lex); lex->lex_is_bol = false; return TOK_FLOAT128; }
+        "_Float32x" { s_update_pos(lex); lex->lex_is_bol = false; return TOK_FLOAT32X; }
+        "_Float64x" { s_update_pos(lex); lex->lex_is_bol = false; return TOK_FLOAT64X; }
+        "_Float128x"{ s_update_pos(lex); lex->lex_is_bol = false; return TOK_FLOAT128X; }
 
         /* Operadores e Pontuação */
         "..." { s_update_pos(lex); lex->lex_is_bol = false; return TOK_ELLIPSIS; }

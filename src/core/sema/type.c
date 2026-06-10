@@ -9,8 +9,15 @@ static void s_set_default_size_align(struct dpp_type *ty)
 	case TYPE_BOOL:   ty->ty_size = 1; ty->ty_align = 1; break;
 	case TYPE_INT:    ty->ty_size = 4; ty->ty_align = 4; break;
 	case TYPE_LONG:   ty->ty_size = 8; ty->ty_align = 8; break;
-	case TYPE_FLOAT:  ty->ty_size = 4; ty->ty_align = 4; break;
-	case TYPE_DOUBLE: ty->ty_size = 8; ty->ty_align = 8; break;
+	case TYPE_FLOAT:    ty->ty_size = 4;  ty->ty_align = 4;  break;
+	case TYPE_FLOAT16:  ty->ty_size = 2;  ty->ty_align = 2;  break;
+	case TYPE_FLOAT32:  ty->ty_size = 4;  ty->ty_align = 4;  break;
+	case TYPE_FLOAT64:  ty->ty_size = 8;  ty->ty_align = 8;  break;
+	case TYPE_FLOAT128: ty->ty_size = 16; ty->ty_align = 16; break;
+	case TYPE_FLOAT32X: ty->ty_size = 8;  ty->ty_align = 8;  break;
+	case TYPE_FLOAT64X: ty->ty_size = 16; ty->ty_align = 16; break;
+	case TYPE_FLOAT128X:ty->ty_size = 16; ty->ty_align = 16; break;
+	case TYPE_DOUBLE:   ty->ty_size = 8;  ty->ty_align = 8;  break;
 	case TYPE_VOID:   ty->ty_size = 1; ty->ty_align = 1; break;
 	default: break;
 	}

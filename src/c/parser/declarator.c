@@ -29,6 +29,27 @@ struct dpp_type *parse_type_spec(struct dpp_parser *par)
         } else if (tok == TOK_FLOAT) {
             dpp_parser_consume(par);
             if (!res) res = dpp_type_new(&par->par_arena, TYPE_FLOAT);
+        } else if (tok == TOK_FLOAT16) {
+            dpp_parser_consume(par);
+            if (!res) res = dpp_type_new(&par->par_arena, TYPE_FLOAT16);
+        } else if (tok == TOK_FLOAT32) {
+            dpp_parser_consume(par);
+            if (!res) res = dpp_type_new(&par->par_arena, TYPE_FLOAT32);
+        } else if (tok == TOK_FLOAT64) {
+            dpp_parser_consume(par);
+            if (!res) res = dpp_type_new(&par->par_arena, TYPE_FLOAT64);
+        } else if (tok == TOK_FLOAT128) {
+            dpp_parser_consume(par);
+            if (!res) res = dpp_type_new(&par->par_arena, TYPE_FLOAT128);
+        } else if (tok == TOK_FLOAT32X) {
+            dpp_parser_consume(par);
+            if (!res) res = dpp_type_new(&par->par_arena, TYPE_FLOAT32X);
+        } else if (tok == TOK_FLOAT64X) {
+            dpp_parser_consume(par);
+            if (!res) res = dpp_type_new(&par->par_arena, TYPE_FLOAT64X);
+        } else if (tok == TOK_FLOAT128X) {
+            dpp_parser_consume(par);
+            if (!res) res = dpp_type_new(&par->par_arena, TYPE_FLOAT128X);
         } else if (tok == TOK_LONG) {
             dpp_parser_consume(par);
             if (!res) res = dpp_type_new(&par->par_arena, TYPE_LONG);

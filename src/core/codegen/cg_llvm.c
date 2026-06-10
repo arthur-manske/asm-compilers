@@ -877,6 +877,15 @@ static LLVMValueRef s_emit_node(struct dpp_codegen *cg, struct dpp_node *node)
 	/* ---- expression / compound statement wrapper ----------------- */
 	case NOD_EXPR_STMT:
 		return s_emit_node(cg, node->nod_child);
+	case NOD_ASM_STMT: {
+		LLVMTypeRef    ret_ty = LLVMVoidTypeInContext(cg->context);
+        LLVMTypeRef    fnty   = LLVMFunctionType(ret_ty, NULL, 0, false);
+		LLVMValueRef   asm_val = LLVMGetInlineAsm(fnty, 
+                                                    (char*)node->nod_child->nod_data.nod_id.id_name,
+                                                    node->nod_child->nod_data.nod_id.id_len,
+                                                    "", 0, false, false, 0, false);
+		return LLVMBuildCall2(cg->builder, fnty, asm_val, NULL, 0, "");
+	}
 	case NOD_COMPOUND_STMT: {
 		struct dpp_node *curr = node->nod_child;
 		LLVMValueRef     last = NULL;

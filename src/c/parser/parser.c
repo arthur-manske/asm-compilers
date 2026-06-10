@@ -152,7 +152,6 @@ static bool s_is_specifier(s32 tok)
 	case TOK_ACCUM:
 	case TOK_UACCUM:
 	case TOK_DECIMAL_TYPE:
-	case TOK_ASM:
 	case TOK_TYPEOF:
 	case TOK_BUILTIN_VA_LIST:
 		return true;
@@ -578,6 +577,10 @@ static struct dpp_node *s_parse_statement(struct dpp_parser *par)
 	u32               line = lex->lex_line;
 	u32               col  = lex->lex_column;
 	s32               tok  = dpp_parser_peek(par);
+	if (tok == TOK_ASM) {
+        dpp_parser_consume(par);
+        return s_parse_asm_stmt(par);
+    }
 	if (tok == TOK_IDENT) {
 		const u8 *name = lex->lex_token;
 		size_t    len  = lex->lex_cursor - lex->lex_token;
@@ -974,46 +977,50 @@ static struct dpp_node *s_parse_asm_stmt(struct dpp_parser *par)
 	struct dpp_lexer *lex  = par->par_curr_lex;
 	u32               line = lex->lex_line;
 	u32               col  = lex->lex_column;
-	dpp_parser_expect(par, TOK_ASM);
-	if (dpp_parser_peek(par) == TOK_VOLATILE) dpp_parser_consume(par);
 	dpp_parser_expect(par, TOK_LPAREN);
 	struct dpp_node  *node = dpp_node_new(&par->par_arena, NOD_ASM_STMT, line, col);
 	struct dpp_node **last = &node->nod_child;
 	while (dpp_parser_peek(par) == TOK_STRING) {
-		struct dpp_node *s = s_parse_primary_expr(par);
-		if (s) {
-			*last = s;
-			last  = &s->nod_next;
-		}
+		struct dpp_node *node       = dpp_node_new(&par->par_arena, NOD_STRING_LITERAL, line, col);
+		size_t           total_len  = 0;
+		u8              *concat_buf = NULL;
+		struct dpp_lexer *cur_lex   = par->par_curr_lex;
+		size_t            raw_len   = cur_lex->lex_cursor - cur_lex->lex_token - 2;
+		u8               *unescaped = dpp_arena_alloc(&par->par_arena, raw_len + 1);
+		size_t            final_len = s_unescape_string(unescaped, cur_lex->lex_token + 1, raw_len);
+		concat_buf                = dpp_arena_alloc(&par->par_arena, final_len + 1);
+		memcpy(concat_buf, unescaped, final_len);
+		concat_buf[final_len] = 0;
+		node->nod_data.nod_id.id_name = concat_buf;
+		node->nod_data.nod_id.id_len  = final_len;
+		dpp_parser_consume(par);
+		*last = node;
+		last  = &node->nod_next;
 	}
 	int section = 0;
-	while (dpp_parser_peek(par) == TOK_COLON && section < 3) {
-		dpp_parser_consume(par);
-		section++;
-		while (dpp_parser_peek(par) != TOK_EOF && dpp_parser_peek(par) != TOK_COLON && dpp_parser_peek(par) != ')') {
-			if (dpp_parser_peek(par) == TOK_LBRACKET) {
+	while (true) {
+		s32 tok = dpp_parser_peek(par);
+        if (tok == TOK_COLON) {
+            dpp_parser_consume(par);
+            continue;
+        }
+		if (tok == TOK_RPAREN || tok == TOK_EOF) break;
+		if (tok == TOK_STRING) {
+			dpp_parser_consume(par);
+		} else if (tok == TOK_LPAREN) {
+			dpp_parser_consume(par);
+			int paren_depth = 1;
+			while (paren_depth > 0 && (tok = dpp_parser_peek(par)) != TOK_EOF) {
+				if (tok == TOK_LPAREN) paren_depth++;
+				else if (tok == TOK_RPAREN) paren_depth--;
 				dpp_parser_consume(par);
-				dpp_parser_expect(par, TOK_IDENT);
-				dpp_parser_expect(par, TOK_RBRACKET);
 			}
-			if (dpp_parser_peek(par) == TOK_STRING) dpp_parser_consume(par);
-			if (dpp_parser_peek(par) == TOK_LPAREN) {
-				dpp_parser_consume(par);
-				struct dpp_node *e = dpp_parser_parse_expr(par, 0);
-				if (e) {
-					*last = e;
-					last  = &e->nod_next;
-				}
-				dpp_parser_expect(par, TOK_RPAREN);
-			}
-			if (dpp_parser_peek(par) == TOK_COMMA)
-				dpp_parser_consume(par);
-			else
-				break;
+		} else {
+			dpp_parser_consume(par);
 		}
 	}
-	dpp_parser_expect(par, ')');
-	if (!dpp_parser_expect(par, TOK_SEMICOLON)) return NULL;
+	dpp_parser_expect(par, TOK_RPAREN);
+	dpp_parser_expect(par, TOK_SEMICOLON);
 	return node;
 }
 
@@ -1476,13 +1483,14 @@ static struct dpp_node *s_parse_enum_specifier(struct dpp_parser *par)
 			}
 			if (dpp_parser_peek(par) == TOK_COMMA)
 				dpp_parser_consume(par);
-			else
+			else if (dpp_parser_peek(par) == TOK_COLON || dpp_parser_peek(par) == TOK_RPAREN)
 				break;
-		}
-		dpp_parser_expect(par, TOK_RBRACE);
-	}
-	return node;
-}
+			}
+			}
+			dpp_parser_expect(par, TOK_RPAREN);
+			dpp_parser_expect(par, TOK_SEMICOLON);
+			return node;
+			}
 
 static bool s_is_type(struct dpp_parser *par)
 {
