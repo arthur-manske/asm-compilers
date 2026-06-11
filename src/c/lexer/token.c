@@ -182,6 +182,24 @@ const char *dpp_token_kind_to_str(s32 kind)
 		return "number";
 	case TOK_STRING:
 		return "string literal";
+	case TOK_STRING_UTF8:
+		return "string literal utf8";
+	case TOK_STRING_UTF16:
+		return "string literal utf16";
+	case TOK_STRING_UTF32:
+		return "string literal utf32";
+	case TOK_STRING_WIDE:
+		return "string literal wide";
+	case TOK_CHAR_LITERAL:
+		return "char literal";
+	case TOK_CHAR_UTF8:
+		return "char literal utf8";
+	case TOK_CHAR_UTF16:
+		return "char literal utf16";
+	case TOK_CHAR_UTF32:
+		return "char literal utf32";
+	case TOK_CHAR_WIDE:
+		return "char literal wide";
 
 	/* Operators */
 	case TOK_ARROW:

@@ -199,7 +199,15 @@ lex_next:
             s_update_pos(lex); lex->lex_is_bol = false; return TOK_NUMBER; 
         }
 
+        "u8\"" ([^"\\] | "\\" .)* "\"" { s_update_pos(lex); lex->lex_is_bol = false; return TOK_STRING_UTF8; }
+        "u\"" ([^"\\] | "\\" .)* "\"" { s_update_pos(lex); lex->lex_is_bol = false; return TOK_STRING_UTF16; }
+        "U\"" ([^"\\] | "\\" .)* "\"" { s_update_pos(lex); lex->lex_is_bol = false; return TOK_STRING_UTF32; }
+        "L\"" ([^"\\] | "\\" .)* "\"" { s_update_pos(lex); lex->lex_is_bol = false; return TOK_STRING_WIDE; }
         "\"" ([^"\\] | "\\" .)* "\"" { s_update_pos(lex); lex->lex_is_bol = false; return TOK_STRING; }
+        "u8'" ([^'\\] | "\\" .)* "'" { s_update_pos(lex); lex->lex_is_bol = false; return TOK_CHAR_UTF8; }
+        "u'" ([^'\\] | "\\" .)* "'" { s_update_pos(lex); lex->lex_is_bol = false; return TOK_CHAR_UTF16; }
+        "U'" ([^'\\] | "\\" .)* "'" { s_update_pos(lex); lex->lex_is_bol = false; return TOK_CHAR_UTF32; }
+        "L'" ([^'\\] | "\\" .)* "'" { s_update_pos(lex); lex->lex_is_bol = false; return TOK_CHAR_WIDE; }
         "'" ([^'\\] | "\\" .)* "'" { s_update_pos(lex); lex->lex_is_bol = false; return TOK_CHAR_LITERAL; }
 
         $ { return TOK_EOF; }

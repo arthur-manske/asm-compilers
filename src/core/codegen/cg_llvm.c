@@ -1,4 +1,5 @@
 #include "core/codegen/cg_llvm.h"
+#include "core/unicode/transcoder.h"
 #include "c/lexer/token.h"
 #include "core/sema/symbol.h"
 #include "core/sema/type.h"
@@ -399,13 +400,29 @@ static LLVMValueRef s_emit_node(struct dpp_codegen *cg, struct dpp_node *node)
 	case NOD_SIZEOF:
 		return LLVMConstInt(LLVMInt32TypeInContext(cg->context), node->nod_data.nod_val.val_int, false);
 	case NOD_STRING_LITERAL: {
-		size_t len = node->nod_data.nod_id.id_len;
-		u8    *buf = malloc(len + 1);
-		memcpy(buf, node->nod_data.nod_id.id_name, len);
-		buf[len]       = 0;
-		LLVMValueRef g = LLVMBuildGlobalStringPtr(cg->builder, (const char *)buf, "strtmp");
-		free(buf);
-		return g;
+		size_t len = node->nod_data.nod_str.str_len;
+        enum dpp_string_type type = node->nod_data.nod_str.str_type;
+        
+        if (type == STR_UTF16) {
+            u16 *buf = malloc((len + 1) * sizeof(u16));
+            size_t utf16_len = dpp_utf8_to_utf16(node->nod_data.nod_str.str_val, buf);
+            LLVMValueRef array = LLVMConstDataArray(LLVMInt16TypeInContext(cg->context), (const char *)buf, utf16_len + 1);
+            LLVMValueRef g = LLVMAddGlobal(cg->module, LLVMTypeOf(array), "strtmp");
+            LLVMSetInitializer(g, array);
+            free(buf);
+            return g;
+        } else if (type == STR_UTF32 || type == STR_WIDE) {
+            u32 *buf = malloc((len + 1) * sizeof(u32));
+            size_t utf32_len = dpp_utf8_to_utf32(node->nod_data.nod_str.str_val, buf);
+            LLVMValueRef array = LLVMConstDataArray(LLVMInt32TypeInContext(cg->context), (const char *)buf, utf32_len + 1);
+            LLVMValueRef g = LLVMAddGlobal(cg->module, LLVMTypeOf(array), "strtmp");
+            LLVMSetInitializer(g, array);
+            free(buf);
+            return g;
+        }
+        
+        // Default (UTF-8/Normal)
+		return LLVMBuildGlobalStringPtr(cg->builder, (const char *)node->nod_data.nod_str.str_val, "strtmp");
 	}
 
 	/* ---- return statement ---------------------------------------- */

@@ -295,10 +295,10 @@ static bool s_eval_if_expr(struct dpp_preproc *pp, struct dpp_lexer *lex)
 static void s_handle_include(struct dpp_preproc *pp, struct dpp_lexer *lex)
 {
 	s32 tok = dpp_lexer_next(lex);
-	if (tok != TOK_STRING && tok != '<') return;
+	if (!DPP_IS_STRING_LITERAL(tok) && tok != '<') return;
 
 	char filename[256];
-	if (tok == TOK_STRING) {
+	if (DPP_IS_STRING_LITERAL(tok)) {
 		snprintf(filename, sizeof(filename), "%.*s", (int)(lex->lex_cursor - lex->lex_token - 2),
 		         lex->lex_token + 1);
 	} else {
@@ -432,7 +432,7 @@ static void s_handle_directive(struct dpp_preproc *pp, struct dpp_lexer *lex)
 	if (tok == TOK_NUMBER) {
 		lex->lex_line = atoi((const char *)lex->lex_token);
 		tok           = dpp_lexer_next(lex);
-		if (tok == TOK_STRING) {
+		if (DPP_IS_STRING_LITERAL(tok)) {
 			size_t flen  = lex->lex_cursor - lex->lex_token - 2;
 			char  *fname = malloc(flen + 1);
 			memcpy(fname, lex->lex_token + 1, flen);

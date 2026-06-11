@@ -74,9 +74,20 @@ enum dpp_token_kind {
 	TOK_NUMBER,
 	TOK_STRING,
 	TOK_CHAR_LITERAL,
+	TOK_STRING_UTF8,
+	TOK_STRING_UTF16,
+	TOK_STRING_UTF32,
+	TOK_STRING_WIDE,
+	TOK_CHAR_UTF8,
+	TOK_CHAR_UTF16,
+	TOK_CHAR_UTF32,
+	TOK_CHAR_WIDE,
 
 	/* Operators */
 	TOK_SEMICOLON = ';',
+#define DPP_IS_STRING_LITERAL(tok) \
+    ((tok) == TOK_STRING || (tok) == TOK_STRING_UTF8 || (tok) == TOK_STRING_UTF16 || \
+     (tok) == TOK_STRING_UTF32 || (tok) == TOK_STRING_WIDE)
 	TOK_LBRACE    = '{',
 	TOK_RBRACE    = '}',
 	TOK_LPAREN    = '(',

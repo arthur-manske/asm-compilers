@@ -246,11 +246,18 @@ static struct dpp_node *s_parse_primary_expr(struct dpp_parser *par)
 		dpp_parser_consume(par);
 		return node;
 	}
-	if (tok == TOK_STRING) {
+	if (DPP_IS_STRING_LITERAL(tok)) {
 		struct dpp_node *node       = dpp_node_new(&par->par_arena, NOD_STRING_LITERAL, line, col);
+        
+        enum dpp_string_type str_type = STR_NORMAL;
+        if (tok == TOK_STRING_UTF8) str_type = STR_UTF8;
+        else if (tok == TOK_STRING_UTF16) str_type = STR_UTF16;
+        else if (tok == TOK_STRING_UTF32) str_type = STR_UTF32;
+        else if (tok == TOK_STRING_WIDE) str_type = STR_WIDE;
+        
 		size_t           total_len  = 0;
 		u8              *concat_buf = NULL;
-		while (dpp_parser_peek(par) == TOK_STRING) {
+		while (DPP_IS_STRING_LITERAL(dpp_parser_peek(par))) {
 			struct dpp_lexer *cur_lex   = par->par_curr_lex;
 			size_t            raw_len   = cur_lex->lex_cursor - cur_lex->lex_token - 2;
 			u8               *unescaped = dpp_arena_alloc(&par->par_arena, raw_len + 1);
@@ -268,9 +275,10 @@ static struct dpp_node *s_parse_primary_expr(struct dpp_parser *par)
 			}
 			dpp_parser_consume(par);
 		}
-		if (concat_buf) concat_buf[total_len] = 0;
-		node->nod_data.nod_id.id_name = concat_buf;
-		node->nod_data.nod_id.id_len  = total_len;
+        node->nod_data.nod_str.str_val = concat_buf;
+        node->nod_data.nod_str.str_len = total_len;
+        node->nod_data.nod_str.str_type = str_type;
+        if (concat_buf) concat_buf[total_len] = 0;
 		return node;
 	}
 	if (tok == TOK_IDENT) {
@@ -981,7 +989,7 @@ static struct dpp_node *s_parse_asm_stmt(struct dpp_parser *par)
 	struct dpp_node  *node = dpp_node_new(&par->par_arena, NOD_ASM_STMT, line, col);
     
     // Template string
-	if (dpp_parser_peek(par) == TOK_STRING) {
+	if (DPP_IS_STRING_LITERAL(dpp_parser_peek(par))) {
 		node->nod_child = dpp_node_new(&par->par_arena, NOD_STRING_LITERAL, line, col);
         node->nod_child->nod_data.nod_id.id_name = par->par_curr_lex->lex_token;
         node->nod_child->nod_data.nod_id.id_len = par->par_curr_lex->lex_cursor - par->par_curr_lex->lex_token;
@@ -1005,7 +1013,7 @@ static struct dpp_node *s_parse_asm_stmt(struct dpp_parser *par)
 
         if (section == 1 || section == 2) {
             // Expect constraint(expr)
-            if (dpp_parser_peek(par) == TOK_STRING) {
+            if (DPP_IS_STRING_LITERAL(dpp_parser_peek(par))) {
                 struct dpp_node *constraint = dpp_node_new(&par->par_arena, NOD_STRING_LITERAL, line, col);
                 constraint->nod_data.nod_id.id_name = par->par_curr_lex->lex_token;
                 constraint->nod_data.nod_id.id_len = par->par_curr_lex->lex_cursor - par->par_curr_lex->lex_token;
@@ -1030,7 +1038,7 @@ static struct dpp_node *s_parse_asm_stmt(struct dpp_parser *par)
             }
         } else if (section == 3) {
             // Expect clobber string
-            if (dpp_parser_peek(par) == TOK_STRING) {
+            if (DPP_IS_STRING_LITERAL(dpp_parser_peek(par))) {
                 struct dpp_node *clobber = dpp_node_new(&par->par_arena, NOD_STRING_LITERAL, line, col);
                 clobber->nod_data.nod_id.id_name = par->par_curr_lex->lex_token;
                 clobber->nod_data.nod_id.id_len = par->par_curr_lex->lex_cursor - par->par_curr_lex->lex_token;
@@ -1290,7 +1298,7 @@ static struct dpp_node *s_parse_declaration(struct dpp_parser *par, struct dpp_n
 				if (dpp_parser_peek(par) == TOK_VOLATILE) dpp_parser_consume(par);
 				if (dpp_parser_peek(par) == TOK_LPAREN) {
 					dpp_parser_consume(par);
-					while (dpp_parser_peek(par) == TOK_STRING) dpp_parser_consume(par);
+					while (DPP_IS_STRING_LITERAL(dpp_parser_peek(par))) dpp_parser_consume(par);
 					dpp_parser_expect(par, ')');
 				}
 			}
@@ -1336,7 +1344,7 @@ static struct dpp_node *s_parse_declaration(struct dpp_parser *par, struct dpp_n
 				if (dpp_parser_peek(par) == TOK_VOLATILE) dpp_parser_consume(par);
 				if (dpp_parser_peek(par) == TOK_LPAREN) {
 					dpp_parser_consume(par);
-					while (dpp_parser_peek(par) == TOK_STRING) dpp_parser_consume(par);
+					while (DPP_IS_STRING_LITERAL(dpp_parser_peek(par))) dpp_parser_consume(par);
 					dpp_parser_expect(par, ')');
 				}
 			}

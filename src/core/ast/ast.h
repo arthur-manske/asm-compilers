@@ -84,6 +84,14 @@ struct dpp_evidence {
 	struct dpp_evidence *evi_next;
 };
 
+enum dpp_string_type {
+    STR_UTF8,
+    STR_UTF16,
+    STR_UTF32,
+    STR_WIDE,
+    STR_NORMAL
+};
+
 struct dpp_node {
 	enum dpp_node_kind nod_kind;
 
@@ -102,6 +110,11 @@ struct dpp_node {
 		        size_t    id_len;
 		        enum dpp_type_kind id_type;
 		} nod_id;
+        struct {
+            const u8           *str_val;
+            size_t              str_len;
+            enum dpp_string_type str_type;
+        } nod_str;
 
 		struct {
 		        enum dpp_op_kind op_kind;
