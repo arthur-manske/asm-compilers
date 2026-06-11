@@ -104,6 +104,42 @@ void dpp_preproc_init(struct dpp_preproc *pp, struct dpp_arena *arena)
 	s_add_macro("__extension__", "");
 	s_add_macro("__builtin_va_list", "void*");
 
+	/* Type-related built-in macros (GCC/Clang) */
+	s_add_macro("__SIZE_TYPE__",       "long unsigned int");
+	s_add_macro("__WCHAR_TYPE__",      "int");
+	s_add_macro("__WINT_TYPE__",       "unsigned int");
+	s_add_macro("__PTRDIFF_TYPE__",    "long int");
+	s_add_macro("__INT8_TYPE__",       "signed char");
+	s_add_macro("__INT16_TYPE__",      "short");
+	s_add_macro("__INT32_TYPE__",      "int");
+	s_add_macro("__INT64_TYPE__",      "long int");
+	s_add_macro("__UINT8_TYPE__",      "unsigned char");
+	s_add_macro("__UINT16_TYPE__",     "unsigned short");
+	s_add_macro("__UINT32_TYPE__",     "unsigned int");
+	s_add_macro("__UINT64_TYPE__",     "long unsigned int");
+	s_add_macro("__INTMAX_TYPE__",     "long int");
+	s_add_macro("__UINTMAX_TYPE__",    "long unsigned int");
+	s_add_macro("__INTPTR_TYPE__",     "long int");
+	s_add_macro("__UINTPTR_TYPE__",    "long unsigned int");
+	s_add_macro("__INT_LEAST8_TYPE__", "signed char");
+	s_add_macro("__INT_LEAST16_TYPE__","short");
+	s_add_macro("__INT_LEAST32_TYPE__","int");
+	s_add_macro("__INT_LEAST64_TYPE__","long int");
+	s_add_macro("__UINT_LEAST8_TYPE__","unsigned char");
+	s_add_macro("__UINT_LEAST16_TYPE__","unsigned short");
+	s_add_macro("__UINT_LEAST32_TYPE__","unsigned int");
+	s_add_macro("__UINT_LEAST64_TYPE__","long unsigned int");
+	s_add_macro("__INT_FAST8_TYPE__",  "signed char");
+	s_add_macro("__INT_FAST16_TYPE__", "short");
+	s_add_macro("__INT_FAST32_TYPE__", "int");
+	s_add_macro("__INT_FAST64_TYPE__", "long int");
+	s_add_macro("__UINT_FAST8_TYPE__", "unsigned char");
+	s_add_macro("__UINT_FAST16_TYPE__","unsigned short");
+	s_add_macro("__UINT_FAST32_TYPE__","unsigned int");
+	s_add_macro("__UINT_FAST64_TYPE__","long unsigned int");
+	s_add_macro("__CHAR16_TYPE__",     "unsigned short");
+	s_add_macro("__CHAR32_TYPE__",     "unsigned int");
+
 #undef s_add_macro
 }
 
@@ -326,10 +362,6 @@ static void s_handle_include(struct dpp_preproc *pp, struct dpp_lexer *lex)
 		}
 	}
 
-	for (u32 i = 0; i < pp->pp_included_count; i++) {
-		if (strcmp(pp->pp_included_files[i], fullpath) == 0) return;
-	}
-
 	if (found) {
 		if (pp->pp_included_count >= pp->pp_included_cap) {
 			pp->pp_included_cap *= 2;
@@ -443,13 +475,7 @@ static void s_handle_directive(struct dpp_preproc *pp, struct dpp_lexer *lex)
 	}
 
 	if (tok == TOK_IF) {
-		bool                cond = s_eval_if_expr(pp, lex);
-		{
-			const u8 *p = lex->lex_cursor;
-			while (*p == ' ' || *p == '\t') p++;
-			fprintf(stderr, "DBG_IF %s:%u cond=%d expr=%.20s\n",
-				lex->lex_filename ? lex->lex_filename : "?", lex->lex_line, cond, (const char *)p);
-		}
+		bool cond = s_eval_if_expr(pp, lex);
 		struct dpp_pp_cond *c    = dpp_arena_alloc(pp->pp_arena, sizeof(struct dpp_pp_cond));
 		c->active                = cond;
 		c->has_taken             = cond;

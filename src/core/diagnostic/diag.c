@@ -29,3 +29,8 @@ u32 dpp_diag_get_error_count(void)
 {
 	return s_error_count;
 }
+
+void dpp_diag_report_error(void)
+{
+    s_error_count++;
+}

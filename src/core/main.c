@@ -141,7 +141,14 @@ int main(int argc, char **argv)
 	struct dpp_parser parser;
 	dpp_c_parser_init(&parser, &pp);
 
+    printf("DEBUG: Starting parser...\n");
 	struct dpp_node *root = dpp_parser_parse(&parser);
+    printf("DEBUG: Parser finished. Errors: %u\n", dpp_diag_get_error_count());
+    
+    if (dpp_diag_get_error_count() > 0) {
+        fprintf(stderr, "\nerror: aborted due to %u parsing errors\n", dpp_diag_get_error_count());
+        return 1;
+    }
 
 	struct dpp_target target;
 	if (dpp_target_load_yaml(&target, "abis/linux-glibc/x86_64/abi.yaml") != 0) {

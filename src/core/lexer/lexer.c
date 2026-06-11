@@ -19,10 +19,13 @@ dpp_lexer_init(struct dpp_lexer *lex, const char *filename, const u8 *data, size
     lex->lex_err = false;
 }
 
+extern void dpp_diag_report_error(void);
+
 void
 dpp_lexer_report_error(struct dpp_lexer *lex, const char *msg)
 {
     lex->lex_err = true;
+    dpp_diag_report_error();
     clog_source src = {
         .file = lex->lex_filename,
         .line = lex->lex_line,

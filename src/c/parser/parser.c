@@ -857,27 +857,18 @@ static void s_parse_gcc_attribute(struct dpp_parser *par, struct dpp_node *node)
 		dpp_parser_consume(par);
 
 		if (tok == TOK_IDENT) {
-			/* Handle both __attr__ and attr */
-			const u8 *name = attr;
-			size_t    nlen = len;
-			if (nlen > 4 && name[0] == '_' && name[1] == '_' && name[nlen - 1] == '_' &&
-			    name[nlen - 2] == '_') {
-				name += 2;
-				nlen -= 4;
-			}
-
-			if (nlen == 13 && memcmp(name, "always_inline", 13) == 0)
-				node->nod_attr_flags |= NOD_ATTR_ALWAYS_INLINE;
-			else if (nlen == 8 && memcmp(name, "noinline", 8) == 0)
-				node->nod_attr_flags |= NOD_ATTR_NOINLINE;
-			else if (nlen == 6 && memcmp(name, "unused", 6) == 0)
-				node->nod_attr_flags |= NOD_ATTR_UNUSED;
-			else if (nlen == 6 && memcmp(name, "packed", 6) == 0)
-				node->nod_is_packed = true;
-			else if (nlen == 15 && memcmp(name, "returns_nonnull", 15) == 0)
-				node->nod_attr_flags |= NOD_ATTR_RETURNS_NONNULL;
-			else if (nlen == 7 && memcmp(name, "nonnull", 7) == 0)
-				node->nod_attr_flags |= NOD_ATTR_NONNULL;
+            struct dpp_node *attr_node = dpp_node_new(&par->par_arena, NOD_ATTRIBUTE, lex->lex_line, lex->lex_column);
+            attr_node->nod_data.nod_attr.attr_name = attr;
+            attr_node->nod_data.nod_attr.attr_len = len;
+            attr_node->nod_data.nod_attr.attr_args = NULL;
+            
+            // Add to node
+            if (!node->nod_attrs) node->nod_attrs = attr_node;
+            else {
+                struct dpp_node *curr = node->nod_attrs;
+                while (curr->nod_next) curr = curr->nod_next;
+                curr->nod_next = attr_node;
+            }
 		}
 
 		if (dpp_parser_peek(par) == '(') {
@@ -895,88 +886,42 @@ static void s_parse_gcc_attribute(struct dpp_parser *par, struct dpp_node *node)
 	dpp_parser_expect(par, ')');
 	dpp_parser_expect(par, ')');
 }
-
-static void s_parse_c23_attribute(struct dpp_parser *par, struct dpp_node *attr_node)
+static void s_parse_c23_attribute(struct dpp_parser *par, struct dpp_node *decl_node)
 {
 	dpp_parser_expect(par, TOK_ATTR_OPEN);
-	bool is_always = false;
 	while (dpp_parser_peek(par) != TOK_EOF && dpp_parser_peek(par) != TOK_ATTR_CLOSE) {
 		if (dpp_parser_peek(par) == TOK_IDENT) {
 			struct dpp_lexer *lex  = par->par_curr_lex;
 			const u8         *name = lex->lex_token;
 			size_t            len  = lex->lex_cursor - lex->lex_token;
-			if (len == 6 && memcmp(name, "always", 6) == 0) {
-				is_always = true;
-				dpp_parser_consume(par);
-			} else if (len == 4 && memcmp(name, "pure", 4) == 0) {
-				attr_node->nod_attr_flags |= NOD_ATTR_PURE;
-				dpp_parser_consume(par);
-			} else if (len == 5 && memcmp(name, "const", 5) == 0) {
-				attr_node->nod_attr_flags |= NOD_ATTR_CONST;
-				dpp_parser_consume(par);
-			} else if (len == 7 && memcmp(name, "nonnull", 7) == 0) {
-				attr_node->nod_attr_flags |= NOD_ATTR_NONNULL;
-				dpp_parser_consume(par);
-			} else if (len == 15 && memcmp(name, "returns_nonnull", 15) == 0) {
-				attr_node->nod_attr_flags |= NOD_ATTR_RETURNS_NONNULL;
-				dpp_parser_consume(par);
-			} else if (len == 6 && memcmp(name, "erange", 6) == 0 ||
-			           len == 4 && memcmp(name, "eval", 4) == 0 ||
-			           len == 7 && memcmp(name, "creates", 7) == 0 ||
-			           len == 8 && memcmp(name, "destroys", 8) == 0 ||
-			           len == 11 && memcmp(name, "initialized", 11) == 0 ||
-			           len == 11 && memcmp(name, "initializer", 11) == 0 ||
-			           len == 13 && memcmp(name, "deinitializer", 13) == 0 ||
-			           len == 22 && memcmp(name, "possible_deinitializer", 22) == 0) {
-				enum dpp_node_kind k;
-				if (len == 6 && memcmp(name, "erange", 6) == 0)
-					k = NOD_ATTR_ERANGE;
-				else if (len == 4 && memcmp(name, "eval", 4) == 0)
-					k = NOD_ATTR_EVAL;
-				else if (len == 7 && memcmp(name, "creates", 7) == 0)
-					k = NOD_ATTR_CREATES;
-				else if (len == 8 && memcmp(name, "destroys", 8) == 0)
-					k = NOD_ATTR_DESTROYS;
-				else if (len == 11 && memcmp(name, "initialized", 11) == 0)
-					k = NOD_ATTR_INITIALIZED;
-				else if (len == 11 && memcmp(name, "initializer", 11) == 0)
-					k = NOD_ATTR_INITIALIZER;
-				else if (len == 13 && memcmp(name, "deinitializer", 13) == 0)
-					k = NOD_ATTR_DEINITIALIZER;
-				else
-					k = NOD_ATTR_POSSIBLE_DEINITIALIZER;
-				dpp_parser_consume(par);
-				struct dpp_node *attr =
-					dpp_node_new(&par->par_arena, k, lex->lex_line, lex->lex_column);
-				if (dpp_parser_peek(par) == '(') {
-					dpp_parser_consume(par);
-					struct dpp_node **arg_last = &attr->nod_child;
-					while (dpp_parser_peek(par) != TOK_EOF && dpp_parser_peek(par) != ')') {
-						dpp_parser_consume(par);
-						if (dpp_parser_peek(par) == TOK_COMMA)
-							dpp_parser_consume(par);
-						else
-							break;
-					}
-					dpp_parser_expect(par, ')');
-				}
-				if (is_always) {
-					struct dpp_node *always = dpp_node_new(&par->par_arena, NOD_ATTR_ALWAYS,
-					                                       lex->lex_line, lex->lex_column);
-					always->nod_child       = attr;
-					attr                    = always;
-				}
-				struct dpp_node **last = &attr_node->nod_attrs;
-				while (*last) last = &(*last)->nod_next;
-				*last     = attr;
-				is_always = false;
-			} else
-				dpp_parser_consume(par);
-		} else if (dpp_parser_peek(par) == TOK_COMMA)
-			dpp_parser_consume(par);
-		else
-			dpp_parser_consume(par);
-	}
+            dpp_parser_consume(par);
+            
+            struct dpp_node *attr = dpp_node_new(&par->par_arena, NOD_ATTRIBUTE, lex->lex_line, lex->lex_column);
+            attr->nod_data.nod_attr.attr_name = name;
+            attr->nod_data.nod_attr.attr_len = len;
+            attr->nod_data.nod_attr.attr_args = NULL;
+            
+            // Parse arguments if present
+            if (dpp_parser_peek(par) == '(') {
+                dpp_parser_consume(par);
+                while (dpp_parser_peek(par) != TOK_EOF && dpp_parser_peek(par) != ')') {
+                    dpp_parser_consume(par);
+                }
+                dpp_parser_expect(par, ')');
+            }
+            
+            // Add to decl_node's attribute list
+            if (!decl_node->nod_attrs) decl_node->nod_attrs = attr;
+            else {
+                struct dpp_node *curr = decl_node->nod_attrs;
+                while (curr->nod_next) curr = curr->nod_next;
+                curr->nod_next = attr;
+            }
+		} else {
+            // Unexpected token in attribute list, skip
+            dpp_parser_consume(par);
+        }
+    }
 	dpp_parser_expect(par, TOK_ATTR_CLOSE);
 }
 
@@ -1135,6 +1080,9 @@ static struct dpp_type *s_base_type_from_tokens(struct dpp_parser *par, s32 last
 	case TOK_BUILTIN_VA_LIST:
 		ty = dpp_type_ptr(&par->par_arena, dpp_type_new(&par->par_arena, TYPE_VOID));
 		break;
+	case TOK_TYPEDEF:
+		ty = st_node ? (struct dpp_type *)st_node->nod_type : dpp_type_new(&par->par_arena, TYPE_INT);
+		break;
 	default:
 		ty = dpp_type_new(&par->par_arena, TYPE_INT);
 		break;
@@ -1187,8 +1135,9 @@ static struct dpp_node *s_parse_declaration(struct dpp_parser *par, struct dpp_n
 				last_type = TOK_TYPEDEF;
 				st_node   = sym->sym_node;
 				dpp_parser_consume(par);
-			} else
+			} else {
 				break;
+			}
 			continue;
 		}
 		if (tok == TOK_ATTRIBUTE)
@@ -1455,8 +1404,7 @@ static struct dpp_node *s_parse_parameter_list(struct dpp_parser *par, bool *out
 				dpp_parser_consume(par);
 				ptr_depth++;
 			} else if (dpp_parser_peek(par) == TOK_ATTRIBUTE) {
-				struct dpp_node *dummy = dpp_node_new(&par->par_arena, NOD_INVALID, 0, 0);
-				s_parse_gcc_attribute(par, dummy);
+				s_parse_gcc_attribute(par, param_attrs);
 			} else {
 				dpp_parser_consume(par);
 			}

@@ -170,6 +170,7 @@ static LLVMValueRef s_cast(struct dpp_codegen *cg, LLVMValueRef val, struct dpp_
 
 /* forward decl */
 static LLVMValueRef s_emit_node(struct dpp_codegen *cg, struct dpp_node *node);
+static void s_ensure_valid_block(struct dpp_codegen *cg);
 
 /* ------------------------------------------------------------------ */
 /*  s_emit_addr – compute the l-value address of a node               */
@@ -251,8 +252,9 @@ static LLVMValueRef s_emit_function(struct dpp_codegen *cg, struct dpp_node *nod
 {
 	if (!node) return NULL;
 	s_clear_labels();
-	struct dpp_type *ret_ty      = (struct dpp_type *)node->nod_type;
-	LLVMTypeRef      llvm_ret_ty = s_map_type(cg, ret_ty);
+	struct dpp_type *ret_ty = (struct dpp_type *)node->nod_type;
+	if (ret_ty && ret_ty->ty_kind == TYPE_FUNCTION) ret_ty = ret_ty->ty_next;
+	LLVMTypeRef llvm_ret_ty = s_map_type(cg, ret_ty);
 	LLVMTypeRef      param_types[64];
 	struct dpp_node *params[64];
 	u32              param_count = 0;
@@ -284,8 +286,12 @@ static LLVMValueRef s_emit_function(struct dpp_codegen *cg, struct dpp_node *nod
 		for (u32 i = 0; i < param_count; i++) {
 			LLVMTypeRef p_ty = param_types[i];
 			char        p_name[256];
-			snprintf(p_name, sizeof(p_name), "%.*s.addr", (int)params[i]->nod_data.nod_id.id_len,
-			         params[i]->nod_data.nod_id.id_name);
+			if (params[i]->nod_data.nod_id.id_name && params[i]->nod_data.nod_id.id_len > 0) {
+				snprintf(p_name, sizeof(p_name), "%.*s.addr", (int)params[i]->nod_data.nod_id.id_len,
+					params[i]->nod_data.nod_id.id_name);
+			} else {
+				snprintf(p_name, sizeof(p_name), "p%d.addr", i);
+			}
 			LLVMValueRef alloca = LLVMBuildAlloca(cg->builder, p_ty, p_name);
 			LLVMBuildStore(cg->builder, LLVMGetParam(func, i), alloca);
 			params[i]->nod_llvm_val = alloca;
@@ -294,6 +300,7 @@ static LLVMValueRef s_emit_function(struct dpp_codegen *cg, struct dpp_node *nod
 		struct dpp_node *stmt = body->nod_child;
 		while (stmt) {
 			s_emit_node(cg, stmt);
+			s_ensure_valid_block(cg);
 			stmt = stmt->nod_next;
 		}
 
@@ -307,6 +314,19 @@ static LLVMValueRef s_emit_function(struct dpp_codegen *cg, struct dpp_node *nod
 	}
 	cg->current_func = old_func;
 	return func;
+}
+
+/* ------------------------------------------------------------------ */
+/*  s_ensure_valid_block – create a new block if current is terminated */
+/* ------------------------------------------------------------------ */
+static void s_ensure_valid_block(struct dpp_codegen *cg)
+{
+	LLVMBasicBlockRef bb = LLVMGetInsertBlock(cg->builder);
+	if (!bb || LLVMGetBasicBlockTerminator(bb)) {
+		LLVMValueRef func = LLVMGetBasicBlockParent(bb);
+		LLVMBasicBlockRef dead_bb = LLVMAppendBasicBlockInContext(cg->context, func, "dead");
+		LLVMPositionBuilderAtEnd(cg->builder, dead_bb);
+	}
 }
 
 /* ------------------------------------------------------------------ */
@@ -327,9 +347,13 @@ static LLVMValueRef s_emit_node(struct dpp_codegen *cg, struct dpp_node *node)
 		struct dpp_type *t       = (struct dpp_type *)node->nod_type;
 		LLVMTypeRef      llvm_ty = s_map_type(cg, t);
 		char             name[256];
-		snprintf(name, sizeof(name), "%.*s", (int)node->nod_data.nod_id.id_len, node->nod_data.nod_id.id_name);
+		if (node->nod_data.nod_id.id_name && node->nod_data.nod_id.id_len > 0) {
+			snprintf(name, sizeof(name), "%.*s", (int)node->nod_data.nod_id.id_len, node->nod_data.nod_id.id_name);
+		} else {
+			name[0] = '\0';
+		}
 		LLVMBasicBlockRef current_bb = LLVMGetInsertBlock(cg->builder);
-		if (!current_bb) {
+		if (!current_bb || !cg->current_func) {
 			/* global */
 			LLVMValueRef g = LLVMAddGlobal(cg->module, llvm_ty, name);
 			if (node->nod_storage & NOD_STORAGE_STATIC) LLVMSetLinkage(g, LLVMInternalLinkage);
@@ -989,6 +1013,7 @@ static LLVMValueRef s_emit_node(struct dpp_codegen *cg, struct dpp_node *node)
 		LLVMValueRef     last = NULL;
 		while (curr) {
 			last = s_emit_node(cg, curr);
+			s_ensure_valid_block(cg);
 			curr = curr->nod_next;
 		}
 		return last;

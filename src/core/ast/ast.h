@@ -68,7 +68,8 @@ enum dpp_node_kind {
 	NOD_LABEL_STMT,
 	NOD_GOTO_STMT,
 	NOD_TYPEOF,
-	NOD_DECLARATOR
+	NOD_DECLARATOR,
+	NOD_ATTRIBUTE
 };
 
 struct dpp_evidence {
@@ -127,6 +128,11 @@ struct dpp_node {
             struct dpp_node *asm_inputs;
             struct dpp_node *asm_clobbers;
         } nod_asm;
+        struct {
+            const u8        *attr_name;
+            size_t           attr_len;
+            struct dpp_node *attr_args;
+        } nod_attr;
 	} nod_data;
 
 	u32 nod_ptr_depth;  /* Profundidade de ponteiros (*) */

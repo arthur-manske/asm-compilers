@@ -62,10 +62,19 @@ struct dpp_type *parse_type_spec(struct dpp_parser *par)
                                                         par->par_curr_lex->lex_cursor - par->par_curr_lex->lex_token);
             if (sym && (sym->sym_node->nod_type_flags & NOD_TYPE_TYPEDEF)) {
                 dpp_parser_consume(par);
-                if (!res) res = dpp_type_new(&par->par_arena, TYPE_INT); // Representing typedef as INT for now
+                if (!res) {
+                    struct dpp_type *actual = (struct dpp_type *)sym->sym_node->nod_type;
+                    res = actual ? actual : dpp_type_new(&par->par_arena, TYPE_INT);
+                }
             } else {
                 break;
             }
+        } else if (tok == TOK_UNSIGNED) {
+            dpp_parser_consume(par);
+            if (!res) res = dpp_type_new(&par->par_arena, TYPE_INT);
+        } else if (tok == TOK_SIGNED) {
+            dpp_parser_consume(par);
+            if (!res) res = dpp_type_new(&par->par_arena, TYPE_INT);
         } else if (tok == TOK_CONST || tok == TOK_VOLATILE || tok == TOK_RESTRICT) {
             dpp_parser_consume(par);
             if (res) {

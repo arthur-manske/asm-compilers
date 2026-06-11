@@ -85,6 +85,8 @@ static void print_source_context(const char *filepath, int error_line, int error
 			/* Remove newline se existir */
 			line[strcspn(line, "\r\n")] = 0;
 
+			fprintf(stderr, "CTXLINE file=%s line=%d col=%d: '%s'\n", filepath, error_line, error_col, line);
+
 			/* Imprime a linha */
 			fprintf(stderr, " %s | %s\n", (should_use_color() ? COLOR_GREEN : ""), line);
 
